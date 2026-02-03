@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard de Estudos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #f4f6f8;
+      padding: 20px;
+    }
+
+    h1, h2 {
+      margin-bottom: 10px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: auto;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    input, select, button, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: #2563eb;
+      color: #fff;
+      font-weight: bold;
+      margin-top: 12px;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .course {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .progress-bar {
+      background: #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+      height: 12px;
+      margin-top: 6px;
+    }
+
+    .progress {
+      background: #22c55e;
+      height: 100%;
+      width: 0%;
+      transition: 0.3s;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: white;
+    }
+
+    .em-andamento { background: #f59e0b; }
+    .concluido { background: #22c55e; }
+    .pausado { background: #6b7280; }
+
+    .suggestion {
+      padding: 8px;
+      background: #eff6ff;
+      border-radius: 6px;
+      margin-bottom: 6px;
+    }
+
+    .login-screen {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-box {
+      width: 350px;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+  </style>
+</head>
+<body>
+
+<div id="login" class="login-screen">
+  <div class="login-box">
+    <h2>Login</h2>
+    <input id="username" placeholder="Digite seu nome" />
+    <button onclick="login()">Entrar</button>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="container">
+    <h1>Dashboard de Estudos</h1>
+    <p id="welcome"></p>
+
+    <div class="grid">
+      <!-- Adicionar Curso -->
+      <div class="card">
+        <h2>Adicionar Curso</h2>
+        <input id="courseName" placeholder="Nome do curso">
+        <input id="courseCategory" placeholder="Categoria (Ex: Frontend, Backend)">
+        <select id="courseStatus">
+          <option value="em andamento">Em andamento</option>
+          <option value="concluído">Concluído</option>
+          <option value="pausado">Pausado</option>
+        </select>
+        <input id="courseProgress" type="number" min="0" max="100" placeholder="Progresso %">
+        <button onclick="addCourse()">Adicionar</button>
+      </div>
+
+      <!-- Sugestões -->
+      <div class="card">
+        <h2>Trilhas Recomendadas</h2>
+        <div id="suggestions"></div>
+      </div>
+    </div>
+
+    <!-- Lista de Cursos -->
+    <div class="card">
+      <h2>Meus Cursos</h2>
+      <div id="courseList"></div>
+    </div>
+
+  </div>
+</div>
+ 
+<script>
+  let courses = JSON.parse(localStorage.getItem("courses")) || []
+  let user = localStorage.getItem("user")
+
+  const trails = {
+    Frontend: ["HTML Avançado", "CSS Flexbox/Grid", "JavaScript Moderno", "React"],
+    Backend: ["Node.js", "APIs REST", "Banco de Dados", "Autenticação JWT"],
+    Mobile: ["Flutter", "React Native", "UI Mobile"]
+  }
+
+  function login() {
+    const name = document.getElementById("username").value
+    if (!name) return alert("Digite seu nome")
+
+    localStorage.setItem("user", name)
+    init()
+  }
+
+  function init() {
+    user = localStorage.getItem("user")
+
+    if (!user) return
+
+    document.getElementById("login").style.display = "none"
+    document.getElementById("app").style.display = "block"
+    document.getElementById("welcome").innerText = `Bem-vindo, ${user}!`
+
+    renderCourses()
+    renderSuggestions()
+  }
+
+  function addCourse() {
+    const name = document.getElementById("courseName").value
+    const category = document.getElementById("courseCategory").value
+    const status = document.getElementById("courseStatus").value
+    const progress = document.getElementById("courseProgress").value
+
+    if (!name || !category) {
+      alert("Preencha os campos")
+      return
+    }
+
+    courses.push({ name, category, status, progress: progress || 0 })
+
+    save()
+    renderCourses()
+    renderSuggestions()
+
+    document.getElementById("courseName").value = ""
+    document.getElementById("courseCategory").value = ""
+    document.getElementById("courseProgress").value = ""
+  }
+
+  function renderCourses() {
+    const list = document.getElementById("courseList")
+    list.innerHTML = ""
+
+    courses.forEach((course, index) => {
+      const div = document.createElement("div")
+      div.className = "course"
+
+      div.innerHTML = `
+        <strong>${course.name}</strong> - ${course.category}<br>
+        <span class="badge ${getStatusClass(course.status)}">${course.status}</span>
+        <div class="progress-bar">
+          <div class="progress" style="width:${course.progress}%"></div>
+        </div>
+        <small>${course.progress}% completo</small>
+        <button onclick="removeCourse(${index})">Remover</button>
+      `
+
+      list.appendChild(div)
+    })
+  }
+
+  function getStatusClass(status) {
+    if (status === "concluído") return "concluido"
+    if (status === "pausado") return "pausado"
+    return "em-andamento"
+  }
+
+  function removeCourse(index) {
+    courses.splice(index, 1)
+    save()
+    renderCourses()
+    renderSuggestions()
+  }
+
+  function renderSuggestions() {
+    const div = document.getElementById("suggestions")
+    div.innerHTML = ""
+
+    const categories = [...new Set(courses.map(c => c.category))]
+
+    categories.forEach(cat => {
+      if (trails[cat]) {
+        trails[cat].forEach(item => {
+          const el = document.createElement("div")
+          el.className = "suggestion"
+          el.innerText = `📌 ${item}`
+          div.appendChild(el)
+        })
+      }
+    })
+
+    if (!categories.length) {
+      div.innerHTML = "Adicione cursos para receber recomendações."
+    }
+  }
+
+  function save() {
+    localStorage.setItem("courses", JSON.stringify(courses))
+  }
+
+  init()
+</script>
+
+</body>
+</html>
